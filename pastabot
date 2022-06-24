@@ -5,8 +5,7 @@ require 'websocket-client-simple'
 require 'rest-client'
 require 'logger'
 require 'json'
-
-# monkeypatching the 
+ 
 module WebSocket
   module Client
     module Simple
@@ -30,6 +29,8 @@ class PastaBot
 
   def initialize
     @logger = Logger.new($stdout)
+    @logger.level = Logger::INFO
+
     @resource = RestClient::Resource.new(
       'https://discord.com/api/v9',
       headers: {
