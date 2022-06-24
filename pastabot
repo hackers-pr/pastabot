@@ -5,7 +5,7 @@ require 'websocket-client-simple'
 require 'rest-client'
 require 'logger'
 require 'json'
- 
+
 module WebSocket
   module Client
     module Simple
@@ -29,7 +29,7 @@ class PastaBot
 
   def initialize
     @logger = Logger.new($stdout)
-    @logger.level = Logger::INFO
+    @logger.level = Logger::DEBUG
 
     @resource = RestClient::Resource.new(
       'https://discord.com/api/v9',
@@ -38,7 +38,7 @@ class PastaBot
         content_type: 'application/json'
       }
     )
-    @pastas = JSON.parse(File.read('~/.pastas.json'))
+    @pastas = JSON.parse(File.read(File.expand_path('~/.pastas.json')))
     @resume = false
   end
 
@@ -118,6 +118,7 @@ class PastaBot
     @user_id = @data['user']['id']
     @session_id = @data['session_id']
     @resume = true
+    handle_reconnect
   end
 
   def handle_message_create
