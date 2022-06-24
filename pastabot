@@ -38,7 +38,7 @@ class PastaBot
         content_type: 'application/json'
       }
     )
-    @pastas = JSON.parse(File.read('pastas.json'))
+    @pastas = JSON.parse(File.read('~/.pastas.json'))
     @resume = false
   end
 
@@ -131,7 +131,7 @@ class PastaBot
     case cmd
     when 'ping' then reply('pong')
     when 'add' then add_pasta(name, pasta)
-    when 'remove' then remove_pasta(name, pasta)
+    when 'remove' then remove_pasta(name)
     when 'send' then send_pasta(name)
     end
   end
@@ -145,7 +145,7 @@ class PastaBot
     @pastas[name] = pasta
   end
 
-  def remove_pasta(name, _pasta)
+  def remove_pasta(name)
     return if pasta_does_not_exist?(name)
 
     @pastas.delete(name)
