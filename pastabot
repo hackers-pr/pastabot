@@ -41,6 +41,7 @@ class PastaBot
     )
 
     @file = File.expand_path('~/.pastas.json')
+    File.write(@file, '{}') unless File.exist?(@file)
     @pastas = JSON.parse(File.read(@file))
   end
 
