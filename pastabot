@@ -213,12 +213,12 @@ class PastaBot
 end
 
 logger = Logger.new(STDOUT)
-logger.level = Logger::DEBUG
+logger.level = Logger::INFO
 
 bot = PastaBot.new(
   ENV['TOKEN'],
   logger,
-  'p'
+  'p!'
 )
 
 bot.run
