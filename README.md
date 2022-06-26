@@ -3,10 +3,9 @@ pastsbot, rewritten in ruby with some changes
 
 # installing
 ```bash
-wget https://raw.githubusercontent.com/hackers-pr/pastabot/main/pastabot
-chmod +x pastabot
-mv pastabot /usr/bin/local
-echo {} > ~/.pastas.json
+git clone https://github.com/hackers-pr/pastabot.git
+cd pastabot
+sudo rake
 ```
 
 # using
@@ -18,8 +17,8 @@ TOKEN='your token' pastabot
 
 ## commands
 ```
-ping
 add [name] [pasta]
 remove [name]
 send [name]
+list
 ```
