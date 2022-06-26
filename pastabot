@@ -1,4 +1,4 @@
-#!/usr/bin/ruby
+#!/:usr/bin/ruby
 # frozen_string_literal: true
 
 require 'websocket-client-simple'
@@ -27,36 +27,40 @@ class PastaBot
     HELLO = 10
   end
 
-  def initialize
-    @logger = Logger.new($stdout)
-    @logger.level = Logger::DEBUG
+  def initialize(token, logger, prefix)
+    @token = token
+    @logger = logger
+    @prefix = prefix
 
     @resource = RestClient::Resource.new(
       'https://discord.com/api/v9',
       headers: {
-        authorization: ENV['TOKEN'],
+        authorization: @token,
         content_type: 'application/json'
       }
     )
-    @pastas = JSON.parse(File.read(File.expand_path('~/.pastas.json')))
-    @resume = false
+
+    @file = File.expand_path('~/.pastas.json')
+    @pastas = JSON.parse(File.read(@file))
   end
 
   def run
+    begin
+      loop { connect }
+    rescue Interrupt
+    ensure
+      @ws.close
+    end
+  end
+
+  def connect
     @ws = WebSocket::Client::Simple.connect('wss://gateway.discord.gg/?v=9&encoding=json')
 
     @ws.on(:message, &method(:handle_message))
     @ws.on(:open) { @logger.info('Connected') }
     @ws.on(:close, &method(:handle_close))
 
-    begin
-      @ws.thread.join
-    rescue Interrupt
-      @resume = false
-      @ws.close
-    ensure
-      File.write('pastas.json', @pastas.to_json)
-    end
+    @ws.thread.join
   end
 
   private
@@ -67,8 +71,7 @@ class PastaBot
 
     case @payload['op']
     when Opcode::DISPATCH then handle_dispatch
-    when Opcode::RECONNECT then handle_reconnect
-    when Opcode::INVALID_SESSION then handle_invalid_session
+    when Opcode::RECONNECT, Opcode::INVALID_SESSION then reconnect
     when Opcode::HELLO then handle_hello
     end
   end
@@ -76,13 +79,6 @@ class PastaBot
   def handle_close(_e)
     @logger.warn('Disconnected')
     @heartbeat&.kill
-
-    if @resume
-      @logger.warn('Able to resume, reconnecting...')
-      run
-    else
-      @logger.fatal('Unable to resume')
-    end
   end
 
   def handle_dispatch
@@ -90,7 +86,6 @@ class PastaBot
 
     case @payload['t']
     when 'READY' then handle_ready
-    when 'RESUMED' then @logger.info('Succesfully resumed')
     when 'MESSAGE_CREATE' then handle_message_create
     end
   end
@@ -98,71 +93,78 @@ class PastaBot
   def handle_hello
     @logger.debug('Received hello payload')
     setup_heartbeat
-    @resume ? send_resume : send_identify
+    send_identify
   end
 
-  def handle_reconnect
-    @logger.warn('Received reconnect payload, reconnecting...')
-    @resume = true
-    @ws.close
-  end
-
-  def handle_invalid_session
-    @logger.warn('Received invalid session payload')
-    @resume = @data
+  def reconnect
+    @logger.warn('Reconnecting...')
     @ws.close
   end
 
   def handle_ready
     @logger.info('Successfully logged in')
     @user_id = @data['user']['id']
-    @session_id = @data['session_id']
-    @resume = true
-    handle_reconnect
   end
 
   def handle_message_create
     return if @data['author']['id'] != @user_id
 
-    prefix, cmd, name, pasta = @data['content'].split(' ', 4)
-    handle_commands(cmd, name, pasta) if prefix == 'pastabot'
+    msg = @data['content']
+
+    return unless msg.start_with?(@prefix)
+
+    cmd, name, pasta = msg.delete_prefix(@prefix).split(' ', 3)
+    handle_commands(cmd, name, pasta)
   end
 
   def handle_commands(cmd, name, pasta)
     case cmd
-    when 'ping' then reply('pong')
-    when 'add' then add_pasta(name, pasta)
-    when 'remove' then remove_pasta(name)
-    when 'send' then send_pasta(name)
+    when 'a' then add_pasta(name, pasta)
+    when 'rm' then remove_pasta(name)
+    when 's' then send_pasta(name)
+    when 'ls' then pasta_list
     end
   end
 
   def add_pasta(name, pasta)
     unless name && pasta
-      reply('The name of the pasta and the pasta itself cannot be empty')
+      reply('a: The name of the pasta and the pasta itself cannot be empty')
       return
     end
 
     @pastas[name] = pasta
+    File.write(@file, @pastas.to_json)
+    delete
   end
 
   def remove_pasta(name)
-    return if pasta_does_not_exist?(name)
+    unless @pastas.key?(name)
+      reply('rm: There is no such pasta')
+      return
+    end
 
     @pastas.delete(name)
+    delete
   end
 
   def send_pasta(name)
-    return if pasta_does_not_exist?(name)
-
+    unless @pastas.key?(name)
+      reply('send: There is no such pasta')
+      return
+    end
+    
     reply(@pastas[name])
   end
 
-  def pasta_does_not_exist?(name)
-    return false if @pastas.key?(name)
+  def pasta_list
+    msg = @pastas.keys.join(',')
 
-    reply('There is no such pasta')
-    true
+    if msg.size > 2000
+      reply('ls: The message is too long, it will be displayed in the terminal')
+      puts msg
+    end
+
+    reply(msg) 
   end
 
   def send(msg)
@@ -189,7 +191,7 @@ class PastaBot
     send(
       op: Opcode::IDENTIFY,
       d: {
-        token: ENV['TOKEN'],
+        token: @token,
         properties: { '$os' => 'linux' },
         intents: 1 << 9 | 1 << 15
       }
@@ -197,23 +199,26 @@ class PastaBot
     @logger.debug('Sent identify payload')
   end
 
-  def send_resume
-    send(
-      op: Opcode::RESUME,
-      d: {
-        token: ENV['TOKEN'],
-        session_id: @session_id,
-        seq: @seq
-      }
-    )
-    @resume = false
-    @logger.debug('Sent resume payload')
+  def message
+    @resource["/channels/#{@data['channel_id']}/messages/#{@data['id']}"]
   end
 
   def reply(content)
-    @resource["/channels/#{@data['channel_id']}/messages"].post({ content: content }.to_json)
+    message.patch({ content: content }.to_json)
+  end
+
+  def delete
+    message.delete
   end
 end
 
-bot = PastaBot.new
+logger = Logger.new(STDOUT)
+logger.level = Logger::DEBUG
+
+bot = PastaBot.new(
+  ENV['TOKEN'],
+  logger,
+  'p'
+)
+
 bot.run
