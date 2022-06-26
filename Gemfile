@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 source 'https://rubygems.org'
-gem 'websocket-client-simple'
 gem 'rest-client'
+gem 'websocket-client-simple'

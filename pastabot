@@ -1,4 +1,4 @@
-#!/:usr/bin/ruby
+#!/usr/bin/ruby
 # frozen_string_literal: true
 
 require 'websocket-client-simple'
@@ -45,12 +45,10 @@ class PastaBot
   end
 
   def run
-    begin
-      loop { connect }
-    rescue Interrupt
-    ensure
-      @ws.close
-    end
+    loop { connect }
+  rescue Interrupt
+  ensure
+    @ws.close
   end
 
   def connect
@@ -152,7 +150,7 @@ class PastaBot
       reply('send: There is no such pasta')
       return
     end
-    
+
     reply(@pastas[name])
   end
 
@@ -164,7 +162,7 @@ class PastaBot
       puts msg
     end
 
-    reply(msg) 
+    reply(msg)
   end
 
   def send(msg)
@@ -193,7 +191,7 @@ class PastaBot
       d: {
         token: @token,
         properties: { '$os' => 'linux' },
-        intents: 1 << 9 | 1 << 15
+        intents: 1 << 9 | 1 << 12 | 1 << 15
       }
     )
     @logger.debug('Sent identify payload')
@@ -212,7 +210,7 @@ class PastaBot
   end
 end
 
-logger = Logger.new(STDOUT)
+logger = Logger.new($stdout)
 logger.level = Logger::INFO
 
 bot = PastaBot.new(

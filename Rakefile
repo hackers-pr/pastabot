@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 task default: :install
 
 task :uninstall do
@@ -5,6 +7,6 @@ task :uninstall do
 end
 
 task install: :uninstall do
-  install 'pastabot', '/usr/local/bin', mode: 0755, owner: 'root', group: 'root'
+  install 'pastabot', '/usr/local/bin', mode: 0o755, owner: 'root', group: 'root'
   File.write(File.join(Dir.home(ENV['SUDO_USER']), 'pastas.json'), '{}')
 end
