@@ -27,7 +27,11 @@ class PastaBot
     HELLO = 10
   end
 
+  InvalidTokenError = Class.new(StandardError)
+
   def initialize(token, logger, prefix)
+    raise InvalidTokenError.new('Invalid token') if token_invalid?
+
     @token = token
     @logger = logger
     @prefix = prefix
@@ -36,7 +40,8 @@ class PastaBot
       'https://discord.com/api/v9',
       headers: {
         authorization: @token,
-        content_type: 'application/json'
+        content_type: 'application/json',
+        user_agent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36'
       }
     )
 
@@ -102,7 +107,10 @@ class PastaBot
 
   def handle_ready
     @logger.info('Successfully logged in')
-    @user_id = @data['user']['id']
+    
+    user = @data['user']
+    @user_id = user['id']
+    @max_msg_size = user['premium_type'] == 2 ? 4000 : 2000
   end
 
   def handle_message_create
@@ -137,28 +145,30 @@ class PastaBot
   end
 
   def remove_pasta(name)
-    unless @pastas.key?(name)
-      reply('rm: There is no such pasta')
-      return
-    end
+    return unless pasta_exists?('rm', name)
 
     @pastas.delete(name)
     delete
   end
 
   def send_pasta(name)
-    unless @pastas.key?(name)
-      reply('send: There is no such pasta')
-      return
-    end
+    return unless pasta_exists?('s', name)
 
     reply(@pastas[name])
+  end
+
+  def pasta_exists?(cmd, name)
+    unless @pastas.key?(name)
+      reply("#{cmd}: There is no such pasta")
+      return false
+    end
+    true
   end
 
   def pasta_list
     msg = @pastas.keys.join(',')
 
-    if msg.size > 2000
+    if msg.size > @max_msg_size
       reply('ls: The message is too long, it will be displayed in the terminal')
       puts msg
     end
@@ -208,6 +218,10 @@ class PastaBot
 
   def delete
     message.delete
+  end
+
+  def token_invalid?
+    @resource["/users/@me"].code == 401
   end
 end
 
