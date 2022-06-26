@@ -30,8 +30,6 @@ class PastaBot
   InvalidTokenError = Class.new(StandardError)
 
   def initialize(token, logger, prefix)
-    raise InvalidTokenError.new('Invalid token') if token_invalid?
-
     @token = token
     @logger = logger
     @prefix = prefix
@@ -44,6 +42,8 @@ class PastaBot
         user_agent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36'
       }
     )
+
+    raise InvalidTokenError.new('Invalid token') if token_invalid? 
 
     @file = File.expand_path('~/.pastas.json')
     File.write(@file, '{}') unless File.exist?(@file)
@@ -221,7 +221,11 @@ class PastaBot
   end
 
   def token_invalid?
-    @resource["/users/@me"].code == 401
+    @resource["/users/@me"].get
+  rescue RestClient::Unauthorized
+    true
+  else
+    false
   end
 end
 
