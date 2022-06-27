@@ -76,20 +76,20 @@ module PastaBot
       Pasta.add(name, pasta)
       msg.delete
     rescue Pasta::InvalidPastaError => e
-      msg.edit(e.message) 
+      msg.edit(e.message)
     end
-  
+
     def delete_pasta(msg, name)
       Pasta.delete(name)
       msg.delete
     end
-  
+
     def send_pasta(msg, name)
       msg.edit(Pasta[name])
     rescue Pasta::NoSuchPastaError => e
-      msg.edit(e.message)     
+      msg.edit(e.message)
     end
-  
+
     def pasta_list(msg)
       new_msg = Pasta.list.join(',')
 

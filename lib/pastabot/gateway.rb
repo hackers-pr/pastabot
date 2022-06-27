@@ -1,9 +1,15 @@
 # frozen_string_literal: true
 
 require 'websocket-client-simple'
- 
-class WebSocket::Client::Simple::Client
-  attr_reader :thread
+
+module WebSocket
+  module Client
+    module Simple
+      class Client
+        attr_reader :thread
+      end
+    end
+  end
 end
 
 module PastaBot
